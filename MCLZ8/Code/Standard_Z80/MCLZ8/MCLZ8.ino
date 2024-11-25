@@ -270,8 +270,8 @@ uint8_t  mode=0;
 int      incomingByte;   
 
 
-uint16_t register_sp   = 0;                   
-uint16_t register_pc   = 0;                   
+uint16_t register_sp   = 0; // stack pointer
+uint16_t register_pc   = 0; // program counter
 uint16_t temp16=0;
 
 // -------------------------------------------------
