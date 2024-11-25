@@ -102,12 +102,36 @@ enum class PIN {
     AD0_IN          = 18, // In-Buffer     
 };
 
-INLINE void PinMode(PIN pin, u8 mode) {
-    pinMode(static_cast<u8>(pin), mode);
+#undef INPUT
+#undef OUTPUT
+#undef INPUT_PULLUP
+enum class PINMODE {
+    INPUT           = 0x0,
+    OUTPUT          = 0x1,
+    INPUT_PULLUP    = 0x2,
+};
+
+#undef HIGH
+#undef LOW
+enum class PINSTATE {
+    HIGH            = 0x01,
+    LOW             = 0x00,
+};
+
+INLINE void PinMode(PIN pin, PINMODE mode) {
+    pinMode(static_cast<u8>(pin), static_cast<u8>(mode));
 }
 
-INLINE void DigitalWriteFast(PIN pin, u8 value) {
-    digitalWriteFast(static_cast<u8>(pin), value);
+INLINE void DigitalWriteFast(PIN pin, PINSTATE state) {
+    digitalWriteFast(static_cast<u8>(pin), static_cast<u8>(state)); // second param is interpreted as zero/not-zero
+}
+
+INLINE void DigitalWriteFast(PIN pin, u8 data, u8 mask) {
+    digitalWriteFast(static_cast<u8>(pin), data & mask); // second param is interpreted as zero/not-zero
+}
+
+INLINE void DigitalWriteFast(PIN pin, bool value) {
+    digitalWriteFast(static_cast<u8>(pin), value); // second param is interpreted as zero/not-zero
 }
 
 // Some utilities
@@ -587,57 +611,57 @@ constexpr uint32_t gpio9_high_array[0x100] = {0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x
 //
 void setup() {
     
-  PinMode(PIN::RESET,        INPUT);  
-  PinMode(PIN::CLK,          INPUT);  
-  PinMode(PIN::NMI,          INPUT);  
-  PinMode(PIN::INTR,         INPUT);  
-  PinMode(PIN::WAIT,         INPUT);  
+  PinMode(PIN::RESET,        PINMODE::INPUT);  
+  PinMode(PIN::CLK,          PINMODE::INPUT);  
+  PinMode(PIN::NMI,          PINMODE::INPUT);  
+  PinMode(PIN::INTR,         PINMODE::INPUT);  
+  PinMode(PIN::WAIT,         PINMODE::INPUT);  
   
-  PinMode(PIN::M1,           OUTPUT); 
-  PinMode(PIN::HALT,         OUTPUT); 
-  PinMode(PIN::RD,           OUTPUT); 
-  PinMode(PIN::WR,           OUTPUT); 
-  PinMode(PIN::MREQ,         OUTPUT); 
-  PinMode(PIN::IOREQ,        OUTPUT); 
-  PinMode(PIN::RFSH,         OUTPUT); 
+  PinMode(PIN::M1,           PINMODE::OUTPUT); 
+  PinMode(PIN::HALT,         PINMODE::OUTPUT); 
+  PinMode(PIN::RD,           PINMODE::OUTPUT); 
+  PinMode(PIN::WR,           PINMODE::OUTPUT); 
+  PinMode(PIN::MREQ,         PINMODE::OUTPUT); 
+  PinMode(PIN::IOREQ,        PINMODE::OUTPUT); 
+  PinMode(PIN::RFSH,         PINMODE::OUTPUT); 
 
-  PinMode(PIN::ADDR15,       OUTPUT); 
-  PinMode(PIN::ADDR14,       OUTPUT); 
-  PinMode(PIN::ADDR13,       OUTPUT); 
-  PinMode(PIN::ADDR12,       OUTPUT); 
-  PinMode(PIN::ADDR11,       OUTPUT); 
-  PinMode(PIN::ADDR10,       OUTPUT); 
-  PinMode(PIN::ADDR9,        OUTPUT); 
-  PinMode(PIN::ADDR8,        OUTPUT); 
+  PinMode(PIN::ADDR15,       PINMODE::OUTPUT); 
+  PinMode(PIN::ADDR14,       PINMODE::OUTPUT); 
+  PinMode(PIN::ADDR13,       PINMODE::OUTPUT); 
+  PinMode(PIN::ADDR12,       PINMODE::OUTPUT); 
+  PinMode(PIN::ADDR11,       PINMODE::OUTPUT); 
+  PinMode(PIN::ADDR10,       PINMODE::OUTPUT); 
+  PinMode(PIN::ADDR9,        PINMODE::OUTPUT); 
+  PinMode(PIN::ADDR8,        PINMODE::OUTPUT); 
 
-  PinMode(PIN::AD7_OUT,      OUTPUT); 
-  PinMode(PIN::AD6_OUT,      OUTPUT); 
-  PinMode(PIN::AD5_OUT,      OUTPUT); 
-  PinMode(PIN::AD4_OUT,      OUTPUT); 
-  PinMode(PIN::AD3_OUT,      OUTPUT); 
-  PinMode(PIN::AD2_OUT,      OUTPUT); 
-  PinMode(PIN::AD1_OUT,      OUTPUT); 
-  PinMode(PIN::AD0_OUT,      OUTPUT); 
-  PinMode(PIN::DATA_OE_n,    OUTPUT); 
-  PinMode(PIN::ADDR_LATCH_n, OUTPUT); 
+  PinMode(PIN::AD7_OUT,      PINMODE::OUTPUT); 
+  PinMode(PIN::AD6_OUT,      PINMODE::OUTPUT); 
+  PinMode(PIN::AD5_OUT,      PINMODE::OUTPUT); 
+  PinMode(PIN::AD4_OUT,      PINMODE::OUTPUT); 
+  PinMode(PIN::AD3_OUT,      PINMODE::OUTPUT); 
+  PinMode(PIN::AD2_OUT,      PINMODE::OUTPUT); 
+  PinMode(PIN::AD1_OUT,      PINMODE::OUTPUT); 
+  PinMode(PIN::AD0_OUT,      PINMODE::OUTPUT); 
+  PinMode(PIN::DATA_OE_n,    PINMODE::OUTPUT); 
+  PinMode(PIN::ADDR_LATCH_n, PINMODE::OUTPUT); 
 
-  PinMode(PIN::AD7_IN,       INPUT); 
-  PinMode(PIN::AD6_IN,       INPUT); 
-  PinMode(PIN::AD5_IN,       INPUT); 
-  PinMode(PIN::AD4_IN,       INPUT); 
-  PinMode(PIN::AD3_IN,       INPUT); 
-  PinMode(PIN::AD2_IN,       INPUT); 
-  PinMode(PIN::AD1_IN,       INPUT); 
-  PinMode(PIN::AD0_IN,       INPUT); 
+  PinMode(PIN::AD7_IN,       PINMODE::INPUT); 
+  PinMode(PIN::AD6_IN,       PINMODE::INPUT); 
+  PinMode(PIN::AD5_IN,       PINMODE::INPUT); 
+  PinMode(PIN::AD4_IN,       PINMODE::INPUT); 
+  PinMode(PIN::AD3_IN,       PINMODE::INPUT); 
+  PinMode(PIN::AD2_IN,       PINMODE::INPUT); 
+  PinMode(PIN::AD1_IN,       PINMODE::INPUT); 
+  PinMode(PIN::AD0_IN,       PINMODE::INPUT); 
 
-  DigitalWriteFast(PIN::M1,0x1);
-  DigitalWriteFast(PIN::HALT,0x1);
-  DigitalWriteFast(PIN::RD,0x1);
-  DigitalWriteFast(PIN::WR,0x1);
-  DigitalWriteFast(PIN::MREQ,0x1);
-  DigitalWriteFast(PIN::IOREQ,0x1);
-  DigitalWriteFast(PIN::RFSH,0x1);
-  DigitalWriteFast(PIN::ADDR_LATCH_n,0x1);
+  DigitalWriteFast(PIN::M1,     PINSTATE::HIGH);
+  DigitalWriteFast(PIN::HALT,   PINSTATE::HIGH);
+  DigitalWriteFast(PIN::RD,     PINSTATE::HIGH);
+  DigitalWriteFast(PIN::WR,     PINSTATE::HIGH);
+  DigitalWriteFast(PIN::MREQ,   PINSTATE::HIGH);
+  DigitalWriteFast(PIN::IOREQ,  PINSTATE::HIGH);
+  DigitalWriteFast(PIN::RFSH,   PINSTATE::HIGH);
+  DigitalWriteFast(PIN::ADDR_LATCH_n,PINSTATE::HIGH);
   
   Serial.begin(9600);
 }
@@ -674,7 +698,7 @@ inline void wait_for_CLK_rising_edge() {
     } while (gpio6.ClkLow());
 
     if (debounce_refresh==1) {
-        DigitalWriteFast(PIN::RFSH,0x1);
+        DigitalWriteFast(PIN::RFSH,PINSTATE::HIGH);
         debounce_refresh=0;
     }
 
@@ -727,7 +751,7 @@ inline u8 BIU_Bus_Cycle(u16 local_address, u8 local_data)  {
         local_mode=0;
     }
 
-    u8 read_cycle = (biu_operation & 0x1);
+    constexpr bool read_cycle = (biu_operation & 0x1);
 
     u32 m1_cycle;
     if ( (biu_operation==OPCODE_READ_M1) || ( biu_operation==INTERRUPT_ACK) ) {
@@ -744,8 +768,8 @@ inline u8 BIU_Bus_Cycle(u16 local_address, u8 local_data)  {
         return 0xEE; 
     }       
 
-    noInterrupts();                                  // Disable Teensy interrupts so the Z80 bus cycle can complete without interruption
-    DigitalWriteFast(PIN::ADDR_LATCH_n,0x1);   // Allow address to propagate through '373 latch
+    noInterrupts(); // Disable Teensy interrupts so the Z80 bus cycle can complete without interruption
+    DigitalWriteFast(PIN::ADDR_LATCH_n,PINSTATE::HIGH); // Allow address to propagate through '373 latch
     
   
     // Pre-calculate before the clock edge to gain speed
@@ -768,7 +792,7 @@ inline u8 BIU_Bus_Cycle(u16 local_address, u8 local_data)  {
     gpio8.Write(writeback_data8 | gpio8_out);
     gpio9.Write(writeback_data9 | gpio9_out | GPIO9::MASK_REFRESH | GPIO9::MASK_DATA_OE_n); // disable PIN_RFSH and PIN_DATA_OE_n
     if ( (biu_operation==OPCODE_READ_M1) || (biu_operation==INTERRUPT_ACK) )  {
-	    DigitalWriteFast(PIN::M1,0x0);
+	    DigitalWriteFast(PIN::M1,PINSTATE::LOW);
     }
 
 
@@ -778,9 +802,9 @@ inline u8 BIU_Bus_Cycle(u16 local_address, u8 local_data)  {
 
         //-------------------------------------------------------------------------------------
         wait_for_CLK_falling_edge();
-        DigitalWriteFast(PIN::MREQ,0x0);                                    // T1 Falling
-        DigitalWriteFast(PIN::RD,0x0);
-        //DigitalWriteFast(PIN::ADDR_LATCH_n,0x0);
+        DigitalWriteFast(PIN::MREQ,PINSTATE::LOW);                                    // T1 Falling
+        DigitalWriteFast(PIN::RD,PINSTATE::LOW);
+        //DigitalWriteFast(PIN::ADDR_LATCH_n,PINSTATE::LOW);
 
         //-------------------------------------------------------------------------------------
         wait_for_CLK_falling_edge();                                              // T2 Falling
@@ -810,19 +834,19 @@ inline u8 BIU_Bus_Cycle(u16 local_address, u8 local_data)  {
         gpio8.Write(writeback_data8 | gpio8_out);
         gpio7.Write(writeback_data7 | gpio7_out);
 
-        DigitalWriteFast(PIN::MREQ,0x1); 
-        DigitalWriteFast(PIN::RFSH,0x0);  
-        DigitalWriteFast(PIN::RD,0x1); 
-        DigitalWriteFast(PIN::M1,0x1);          // TODO: isn't this redundant w/ writeback_data7 above?
+        DigitalWriteFast(PIN::MREQ,PINSTATE::HIGH); 
+        DigitalWriteFast(PIN::RFSH,PINSTATE::LOW);  
+        DigitalWriteFast(PIN::RD,PINSTATE::HIGH); 
+        DigitalWriteFast(PIN::M1,PINSTATE::HIGH); // TODO: isn't this redundant w/ writeback_data7 above?
 
         //-------------------------------------------------------------------------------------                              
         wait_for_CLK_falling_edge();
-        DigitalWriteFast(PIN::MREQ,0x0);                                     // T3 Falling
-        u8 read_data = gpio6.Data(read_data_raw);                                 // Read the Z80 bus data, re-arranging bits
+        DigitalWriteFast(PIN::MREQ,PINSTATE::LOW); // T3 Falling
+        u8 read_data = gpio6.Data(read_data_raw); // Read the Z80 bus data, re-arranging bits
 
         //-------------------------------------------------------------------------------------
         wait_for_CLK_falling_edge();
-        DigitalWriteFast(PIN::MREQ,0x1);                                     // T4 Falling
+        DigitalWriteFast(PIN::MREQ,PINSTATE::HIGH); // T4 Falling
         debounce_refresh=1;
 
         //-------------------------------------------------------------------------------------
@@ -841,32 +865,32 @@ inline u8 BIU_Bus_Cycle(u16 local_address, u8 local_data)  {
     else if ( (biu_operation==MEM_READ_BYTE) || (biu_operation==MEM_WRITE_BYTE) )  {
         //-------------------------------------------------------------------------------------
         wait_for_CLK_falling_edge();
-        DigitalWriteFast(PIN::ADDR_LATCH_n,0x0);                             // T1 Falling
-        DigitalWriteFast(PIN::MREQ,0x0);
+        DigitalWriteFast(PIN::ADDR_LATCH_n,PINSTATE::LOW);                             // T1 Falling
+        DigitalWriteFast(PIN::MREQ,PINSTATE::LOW);
         DigitalWriteFast(PIN::RD,!read_cycle);
 
-        DigitalWriteFast(PIN::AD7_OUT,  (local_data & 0x80) );         
-        DigitalWriteFast(PIN::AD6_OUT,  (local_data & 0x40) );
-        DigitalWriteFast(PIN::AD5_OUT,  (local_data & 0x20) );
-        DigitalWriteFast(PIN::AD4_OUT,  (local_data & 0x10) );
-        DigitalWriteFast(PIN::AD3_OUT,  (local_data & 0x08) );
-        DigitalWriteFast(PIN::AD2_OUT,  (local_data & 0x04) );
-        DigitalWriteFast(PIN::AD1_OUT,  (local_data & 0x02) );
-        DigitalWriteFast(PIN::AD0_OUT,  (local_data & 0x01) );     
+        DigitalWriteFast(PIN::AD7_OUT,  local_data, 0x80 );         
+        DigitalWriteFast(PIN::AD6_OUT,  local_data, 0x40 );
+        DigitalWriteFast(PIN::AD5_OUT,  local_data, 0x20 );
+        DigitalWriteFast(PIN::AD4_OUT,  local_data, 0x10 );
+        DigitalWriteFast(PIN::AD3_OUT,  local_data, 0x08 );
+        DigitalWriteFast(PIN::AD2_OUT,  local_data, 0x04 );
+        DigitalWriteFast(PIN::AD1_OUT,  local_data, 0x02 );
+        DigitalWriteFast(PIN::AD0_OUT,  local_data, 0x01 );     
         DigitalWriteFast(PIN::DATA_OE_n, read_cycle);
 
         //-------------------------------------------------------------------------------------
         wait_for_CLK_falling_edge();
-        DigitalWriteFast(PIN::WR,read_cycle);                                      // T2 Falling
+        DigitalWriteFast(PIN::WR, read_cycle);                                      // T2 Falling
         while (gpio6.WaitAsserted()) {
             wait_for_CLK_falling_edge();
         }                     
 
         //-------------------------------------------------------------------------------------
         wait_for_CLK_falling_edge();
-        DigitalWriteFast(PIN::MREQ,0x1);                                     // T3 Falling   -- Read data sampled on this edge
-        DigitalWriteFast(PIN::RD,0x1); 
-        DigitalWriteFast(PIN::WR,0x1); 
+        DigitalWriteFast(PIN::MREQ,PINSTATE::HIGH);                                     // T3 Falling   -- Read data sampled on this edge
+        DigitalWriteFast(PIN::RD,PINSTATE::HIGH); 
+        DigitalWriteFast(PIN::WR,PINSTATE::HIGH); 
         u8 read_data = gpio6.Data();                                               // Read the Z80 bus data, re-arranging bits
                               
         interrupts();   
@@ -884,21 +908,21 @@ inline u8 BIU_Bus_Cycle(u16 local_address, u8 local_data)  {
         
         //-------------------------------------------------------------------------------------
         wait_for_CLK_falling_edge();
-        DigitalWriteFast(PIN::ADDR_LATCH_n,0x0);                            // T1 Falling
-        DigitalWriteFast(PIN::AD7_OUT,  (local_data & 0x80) );                   
-        DigitalWriteFast(PIN::AD6_OUT,  (local_data & 0x40) );
-        DigitalWriteFast(PIN::AD5_OUT,  (local_data & 0x20) );
-        DigitalWriteFast(PIN::AD4_OUT,  (local_data & 0x10) );
-        DigitalWriteFast(PIN::AD3_OUT,  (local_data & 0x08) );
-        DigitalWriteFast(PIN::AD2_OUT,  (local_data & 0x04) );
-        DigitalWriteFast(PIN::AD1_OUT,  (local_data & 0x02) );
-        DigitalWriteFast(PIN::AD0_OUT,  (local_data & 0x01) );        
+        DigitalWriteFast(PIN::ADDR_LATCH_n,PINSTATE::LOW);                            // T1 Falling
+        DigitalWriteFast(PIN::AD7_OUT,  local_data, 0x80 );         
+        DigitalWriteFast(PIN::AD6_OUT,  local_data, 0x40 );
+        DigitalWriteFast(PIN::AD5_OUT,  local_data, 0x20 );
+        DigitalWriteFast(PIN::AD4_OUT,  local_data, 0x10 );
+        DigitalWriteFast(PIN::AD3_OUT,  local_data, 0x08 );
+        DigitalWriteFast(PIN::AD2_OUT,  local_data, 0x04 );
+        DigitalWriteFast(PIN::AD1_OUT,  local_data, 0x02 );
+        DigitalWriteFast(PIN::AD0_OUT,  local_data, 0x01 );     
         DigitalWriteFast(PIN::DATA_OE_n, read_cycle);
                           
                           
         //-------------------------------------------------------------------------------------
         wait_for_CLK_rising_edge();
-        DigitalWriteFast(PIN::IOREQ,0x0);                                  // T2 Rising
+        DigitalWriteFast(PIN::IOREQ,PINSTATE::LOW);                                  // T2 Rising
         DigitalWriteFast(PIN::RD,!read_cycle);
         DigitalWriteFast(PIN::WR,read_cycle);
                                       
@@ -910,9 +934,9 @@ inline u8 BIU_Bus_Cycle(u16 local_address, u8 local_data)  {
         while (gpio6.WaitAsserted()) {
             wait_for_CLK_falling_edge();                                        // T3 Falling        -- Read data sampled on this edge  
         }               
-        DigitalWriteFast(PIN::IOREQ,0x1);                                       
-        DigitalWriteFast(PIN::RD,0x1); 
-        DigitalWriteFast(PIN::WR,0x1); 
+        DigitalWriteFast(PIN::IOREQ,PINSTATE::HIGH);                                       
+        DigitalWriteFast(PIN::RD,PINSTATE::HIGH); 
+        DigitalWriteFast(PIN::WR,PINSTATE::HIGH); 
         u8 read_data = gpio6.Data();                                            // Read the Z80 bus data, re-arranging bits
 
         interrupts(); 
@@ -928,7 +952,7 @@ inline u8 BIU_Bus_Cycle(u16 local_address, u8 local_data)  {
         wait_for_CLK_rising_edge();                                             // T2 Rising
         wait_for_CLK_rising_edge();                                             // Tw1 Rising
         wait_for_CLK_falling_edge();
-        DigitalWriteFast(PIN::IOREQ,0x0);                                 // Tw1 Falling
+        DigitalWriteFast(PIN::IOREQ,PINSTATE::LOW);                                 // Tw1 Falling
 
         //-------------------------------------------------------------------------------------
         wait_for_CLK_falling_edge();
@@ -959,19 +983,19 @@ inline u8 BIU_Bus_Cycle(u16 local_address, u8 local_data)  {
         gpio8.Write(writeback_data8 | gpio8_out);
         gpio7.Write(writeback_data7 | gpio7_out);
 
-        DigitalWriteFast(PIN::M1,0x1);          // TODO: isn't this redundant w/ writeback_data7 above?
-        DigitalWriteFast(PIN::RFSH,0x0);  
-        DigitalWriteFast(PIN::IOREQ,0x1);       // TODO: isn't this redundant w/ gpio8_out above?
+        DigitalWriteFast(PIN::M1,PINSTATE::HIGH);          // TODO: isn't this redundant w/ writeback_data7 above?
+        DigitalWriteFast(PIN::RFSH,PINSTATE::LOW);  
+        DigitalWriteFast(PIN::IOREQ,PINSTATE::HIGH);       // TODO: isn't this redundant w/ gpio8_out above?
 
         //-------------------------------------------------------------------------------------
         wait_for_CLK_falling_edge();
-        DigitalWriteFast(PIN::MREQ,0x0);                                    // T3 Falling
+        DigitalWriteFast(PIN::MREQ,PINSTATE::LOW);                                    // T3 Falling
         u8 read_data = gpio6.Data(read_data_raw);                                 // Read the Z80 bus data, re-arranging bits
 
                                       
         //-------------------------------------------------------------------------------------
         wait_for_CLK_falling_edge();
-        DigitalWriteFast(PIN::MREQ,0x1);                                    // T4 Falling
+        DigitalWriteFast(PIN::MREQ,PINSTATE::HIGH);                                    // T4 Falling
         debounce_refresh=1;
 
         interrupts(); 
@@ -1942,7 +1966,7 @@ void opcode_0xBE () {  if (prefix_dd==1) { cp_opcode=1; SUB_Bytes(register_a , R
                        if (prefix_fd==1) { cp_opcode=1; SUB_Bytes(register_a , Read_byte(REGISTER_IY + Sign_Extend(Fetch_byte()))); }  else
                                          { cp_opcode=1; SUB_Bytes(register_a , Read_byte(REGISTER_HL));   }  return; }        
 
-void opcode_0x33 () {  register_sp++;                                                        return;  }  // inc sp
+void opcode_0x33 () {  register_sp++; }  // inc sp
 void opcode_0x03 () {  Writeback_Reg16(REG_BC , (REGISTER_BC) + 1);                          return;  }  // inc bc
 void opcode_0x13 () {  Writeback_Reg16(REG_DE , (REGISTER_DE) + 1);                          return;  }  // inc de
 void opcode_0x23 () {  if (prefix_dd==1) { Writeback_Reg16(REG_IX , (REGISTER_IX) + 1);  }   else        // inc hl
@@ -1971,7 +1995,7 @@ void opcode_0x34 () {  inc_dec=1; if (prefix_dd==1) { temp16=REGISTER_IX + Sign_
 
 // -----------
 
-void opcode_0x3B () {  register_sp--;                                                        return;  }  // dec sp
+void opcode_0x3B () {  register_sp--; }  // dec sp
 void opcode_0x0B () {  Writeback_Reg16(REG_BC , (REGISTER_BC) - 1);                          return;  }  // dec bc
 void opcode_0x1B () {  Writeback_Reg16(REG_DE , (REGISTER_DE) - 1);                          return;  }  // dec de
 void opcode_0x2B () {  if (prefix_dd==1) { Writeback_Reg16(REG_IX , (REGISTER_IX) - 1);  }   else        // dec hl
@@ -3397,9 +3421,9 @@ return;
   
   // Copy the motherboard ROMS into internal RAM for acceleration
   //
-  for (local_counter=0; local_counter<=0x37DF; local_counter++)  {
-    internal_RAM[local_counter] = BIU_Bus_Cycle<MEM_READ_BYTE>(local_counter , 0x00 );
-  }
+  // for (local_counter=0; local_counter<=0x37DF; local_counter++)  {
+  //   internal_RAM[local_counter] = BIU_Bus_Cycle<MEM_READ_BYTE>(local_counter , 0x00 );
+  // }
 
   local_counter=0;
   
