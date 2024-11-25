@@ -715,7 +715,8 @@ inline void wait_for_CLK_falling_edge() {
 // -------------------------------------------------
 // Initiate a Z80 Bus Cycle
 // -------------------------------------------------
-inline u8 BIU_Bus_Cycle(u8 biu_operation, u16 local_address, u8 local_data)  {
+template <u8 biu_operation>
+inline u8 BIU_Bus_Cycle(u16 local_address, u8 local_data)  {
 
     // For non-IO cycles, check address for the acceleration mode
     //
@@ -1038,9 +1039,9 @@ uint8_t Fetch_opcode()  {
     uint8_t local_byte;
     
     if (assert_iack_type0==1)  {
-        local_byte = BIU_Bus_Cycle(INTERRUPT_ACK, 0x0000, 0x00); 
+        local_byte = BIU_Bus_Cycle<INTERRUPT_ACK>(0x0000, 0x00); 
     } else {
-        local_byte = BIU_Bus_Cycle(OPCODE_READ_M1, register_pc, 0x00);
+        local_byte = BIU_Bus_Cycle<OPCODE_READ_M1>(register_pc, 0x00);
     }
     
     assert_iack_type0=0;
@@ -1055,7 +1056,7 @@ uint8_t Fetch_opcode()  {
 // ------------------------------------------------------
 
 uint8_t Fetch_byte()  {
-    uint8_t local_byte = BIU_Bus_Cycle(MEM_READ_BYTE, register_pc, 0x00);
+    uint8_t local_byte = BIU_Bus_Cycle<MEM_READ_BYTE>(register_pc, 0x00);
     register_pc++;
     return local_byte;
 }
@@ -1066,23 +1067,23 @@ uint8_t Fetch_byte()  {
 // ------------------------------------------------------
 
 uint8_t Read_byte(uint16_t local_address)  {
-    uint8_t local_byte = BIU_Bus_Cycle(MEM_READ_BYTE, local_address, 0x00);
+    uint8_t local_byte = BIU_Bus_Cycle<MEM_READ_BYTE>(local_address, 0x00);
     return local_byte;
 }
 
 uint16_t Read_word(uint16_t local_address)  {
-    uint8_t local_byte1 = BIU_Bus_Cycle(MEM_READ_BYTE, local_address, 0x00);
-    uint8_t local_byte2 = BIU_Bus_Cycle(MEM_READ_BYTE, local_address + 1, 0x00);
+    uint8_t local_byte1 = BIU_Bus_Cycle<MEM_READ_BYTE>(local_address, 0x00);
+    uint8_t local_byte2 = BIU_Bus_Cycle<MEM_READ_BYTE>(local_address + 1, 0x00);
     return (local_byte1 | (local_byte2<<8));
 }
 
 void Write_byte(uint16_t local_address , uint8_t local_data)  {    
-    BIU_Bus_Cycle(MEM_WRITE_BYTE , local_address , local_data );
+    BIU_Bus_Cycle<MEM_WRITE_BYTE>(local_address , local_data );
 }
 
 void Write_word(uint16_t local_address , uint16_t local_data)  {    
-    BIU_Bus_Cycle(MEM_WRITE_BYTE , local_address   , local_data    );  
-    BIU_Bus_Cycle(MEM_WRITE_BYTE , local_address+1 , local_data>>8 );  
+    BIU_Bus_Cycle<MEM_WRITE_BYTE>(local_address   , local_data    );  
+    BIU_Bus_Cycle<MEM_WRITE_BYTE>(local_address+1 , local_data>>8 );  
 }
 
 void Writeback_Reg16(uint8_t local_reg , uint16_t local_data)  {
@@ -1123,15 +1124,15 @@ void opcode_0x00 () { // NOP
 
 void Push(uint16_t local_data)  {    
     register_sp--;
-    BIU_Bus_Cycle(MEM_WRITE_BYTE , register_sp   , local_data>>8    );  // High Byte
+    BIU_Bus_Cycle<MEM_WRITE_BYTE>(register_sp   , local_data>>8    );  // High Byte
     register_sp--;
-    BIU_Bus_Cycle(MEM_WRITE_BYTE , register_sp , local_data );          // Low Byte
+    BIU_Bus_Cycle<MEM_WRITE_BYTE>(register_sp , local_data );          // Low Byte
 }
 
 uint16_t Pop()  {
-    u8 local_data_low = BIU_Bus_Cycle(MEM_READ_BYTE, register_sp, 0x00); // Low Byte
+    u8 local_data_low = BIU_Bus_Cycle<MEM_READ_BYTE>(register_sp, 0x00); // Low Byte
     register_sp++;
-    u8 local_data_high = BIU_Bus_Cycle(MEM_READ_BYTE, register_sp, 0x00); // High Byte
+    u8 local_data_high = BIU_Bus_Cycle<MEM_READ_BYTE>(register_sp, 0x00); // High Byte
     register_sp++;
     return( (local_data_high<<8) | local_data_low);
 }
@@ -2012,26 +2013,26 @@ void Flags_IO(uint8_t local_data) {
     if (local_data==0)  register_f = register_f | 0x40;     // Set Z flag
     return;
 }
-void opcode_0xDB()   {  register_a = BIU_Bus_Cycle(IO_READ_BYTE , Fetch_byte()  , 0x00 );                        return;    }     // in a,(*)
-void opcode_0xED78() {  register_a = BIU_Bus_Cycle(IO_READ_BYTE , register_c      , 0x00 ); Flags_IO(register_a);  return;    }     // in a,(c)
-void opcode_0xED40() {  register_b = BIU_Bus_Cycle(IO_READ_BYTE , register_c      , 0x00 ); Flags_IO(register_b);  return;    }     // in b,(c)
-void opcode_0xED48() {  register_c = BIU_Bus_Cycle(IO_READ_BYTE , register_c      , 0x00 ); Flags_IO(register_c);  return;    }     // in c,(c)
-void opcode_0xED50() {  register_d = BIU_Bus_Cycle(IO_READ_BYTE , register_c      , 0x00 ); Flags_IO(register_d);  return;    }     // in d,(c)
-void opcode_0xED58() {  register_e = BIU_Bus_Cycle(IO_READ_BYTE , register_c      , 0x00 ); Flags_IO(register_e);  return;    }     // in e,(c)
-void opcode_0xED60() {  register_h = BIU_Bus_Cycle(IO_READ_BYTE , register_c      , 0x00 ); Flags_IO(register_h);  return;    }     // in h,(c)
-void opcode_0xED68() {  register_l = BIU_Bus_Cycle(IO_READ_BYTE , register_c      , 0x00 ); Flags_IO(register_l);  return;    }     // in l,(c)
-void opcode_0xED70() {  temp8      = BIU_Bus_Cycle(IO_READ_BYTE , register_c      , 0x00 ); Flags_IO(temp8);       return;    }     // in(c)
+void opcode_0xDB()   {  register_a = BIU_Bus_Cycle<IO_READ_BYTE>(Fetch_byte()  , 0x00 );                        return;    }     // in a,(*)
+void opcode_0xED78() {  register_a = BIU_Bus_Cycle<IO_READ_BYTE>(register_c      , 0x00 ); Flags_IO(register_a);  return;    }     // in a,(c)
+void opcode_0xED40() {  register_b = BIU_Bus_Cycle<IO_READ_BYTE>(register_c      , 0x00 ); Flags_IO(register_b);  return;    }     // in b,(c)
+void opcode_0xED48() {  register_c = BIU_Bus_Cycle<IO_READ_BYTE>(register_c      , 0x00 ); Flags_IO(register_c);  return;    }     // in c,(c)
+void opcode_0xED50() {  register_d = BIU_Bus_Cycle<IO_READ_BYTE>(register_c      , 0x00 ); Flags_IO(register_d);  return;    }     // in d,(c)
+void opcode_0xED58() {  register_e = BIU_Bus_Cycle<IO_READ_BYTE>(register_c      , 0x00 ); Flags_IO(register_e);  return;    }     // in e,(c)
+void opcode_0xED60() {  register_h = BIU_Bus_Cycle<IO_READ_BYTE>(register_c      , 0x00 ); Flags_IO(register_h);  return;    }     // in h,(c)
+void opcode_0xED68() {  register_l = BIU_Bus_Cycle<IO_READ_BYTE>(register_c      , 0x00 ); Flags_IO(register_l);  return;    }     // in l,(c)
+void opcode_0xED70() {  temp8      = BIU_Bus_Cycle<IO_READ_BYTE>(register_c      , 0x00 ); Flags_IO(temp8);       return;    }     // in(c)
 
 
-void opcode_0xD3()     {  BIU_Bus_Cycle(IO_WRITE_BYTE , Fetch_byte() ,            register_a );   return;    }     // out (*),a
-void opcode_0xED79()   {  BIU_Bus_Cycle(IO_WRITE_BYTE , register_c ,              register_a );   return;    }     // out (c),a
-void opcode_0xED41()   {  BIU_Bus_Cycle(IO_WRITE_BYTE , register_c ,              register_b );   return;    }     // out (c),b
-void opcode_0xED49()   {  BIU_Bus_Cycle(IO_WRITE_BYTE , register_c ,              register_c );   return;    }     // out (c),c
-void opcode_0xED51()   {  BIU_Bus_Cycle(IO_WRITE_BYTE , register_c ,              register_d );   return;    }     // out (c),d
-void opcode_0xED59()   {  BIU_Bus_Cycle(IO_WRITE_BYTE , register_c ,              register_e );   return;    }     // out (c),e
-void opcode_0xED61()   {  BIU_Bus_Cycle(IO_WRITE_BYTE , register_c ,              register_h );   return;    }     // out (c),h
-void opcode_0xED69()   {  BIU_Bus_Cycle(IO_WRITE_BYTE , register_c ,              register_l );   return;    }     // out (c),l
-void opcode_0xED71()   {  BIU_Bus_Cycle(IO_WRITE_BYTE , register_c ,                     0x0 );   return;    }     // out (c),0x0
+void opcode_0xD3()     {  BIU_Bus_Cycle<IO_WRITE_BYTE>(Fetch_byte() ,            register_a );   return;    }     // out (*),a
+void opcode_0xED79()   {  BIU_Bus_Cycle<IO_WRITE_BYTE>(register_c ,              register_a );   return;    }     // out (c),a
+void opcode_0xED41()   {  BIU_Bus_Cycle<IO_WRITE_BYTE>(register_c ,              register_b );   return;    }     // out (c),b
+void opcode_0xED49()   {  BIU_Bus_Cycle<IO_WRITE_BYTE>(register_c ,              register_c );   return;    }     // out (c),c
+void opcode_0xED51()   {  BIU_Bus_Cycle<IO_WRITE_BYTE>(register_c ,              register_d );   return;    }     // out (c),d
+void opcode_0xED59()   {  BIU_Bus_Cycle<IO_WRITE_BYTE>(register_c ,              register_e );   return;    }     // out (c),e
+void opcode_0xED61()   {  BIU_Bus_Cycle<IO_WRITE_BYTE>(register_c ,              register_h );   return;    }     // out (c),h
+void opcode_0xED69()   {  BIU_Bus_Cycle<IO_WRITE_BYTE>(register_c ,              register_l );   return;    }     // out (c),l
+void opcode_0xED71()   {  BIU_Bus_Cycle<IO_WRITE_BYTE>(register_c ,                     0x0 );   return;    }     // out (c),0x0
 
         
 // ------------------------------------------------------
@@ -2340,7 +2341,7 @@ void opcode_0x27()  {                                           // daa
 
 void opcode_0xEDA2()  {                                     // ini
     register_f = register_f & 0xBF;                         // Clear Z flag     
-    Write_byte( REGISTER_HL ,  BIU_Bus_Cycle(IO_READ_BYTE,register_c,0x00) );
+    Write_byte( REGISTER_HL ,  BIU_Bus_Cycle<IO_READ_BYTE>(register_c,0x00) );
     Writeback_Reg16( REG_HL , (REGISTER_HL + 1) );
     register_b--;
     if (register_b==0) register_f = register_f | 0x40;      // Set Z flag
@@ -2350,7 +2351,7 @@ void opcode_0xEDA2()  {                                     // ini
 
 void opcode_0xEDA3()  {                                     // outi
     register_f = register_f & 0xBF;                         // Clear Z flag     
-    BIU_Bus_Cycle(IO_WRITE_BYTE,register_c, (Read_byte(REGISTER_HL)) );
+    BIU_Bus_Cycle<IO_WRITE_BYTE>(register_c, (Read_byte(REGISTER_HL)) );
     Writeback_Reg16( REG_HL , (REGISTER_HL + 1) );
     register_b--;
     if (register_b==0) register_f = register_f | 0x40;      // Set Z flag
@@ -2422,7 +2423,7 @@ void opcode_0xEDA9()  {                                     // cpd
 
 void opcode_0xEDAA()  {                                     // ind
     register_f = register_f & 0xBF;                         // Clear Z flag     
-    Write_byte( REGISTER_HL ,  BIU_Bus_Cycle(IO_READ_BYTE,register_c,0x00) );
+    Write_byte( REGISTER_HL ,  BIU_Bus_Cycle<IO_READ_BYTE>(register_c,0x00) );
     Writeback_Reg16( REG_HL , (REGISTER_HL + 1) );
     register_b--;
     if (register_b==0) register_f = register_f | 0x40;      // Set Z flag
@@ -2433,7 +2434,7 @@ void opcode_0xEDAA()  {                                     // ind
 
 void opcode_0xEDAB()  {                                     // outd
     register_f = register_f & 0xBF;                         // Clear Z flag     
-    BIU_Bus_Cycle(IO_WRITE_BYTE,register_c, (Read_byte(REGISTER_HL)) );
+    BIU_Bus_Cycle<IO_WRITE_BYTE>(register_c, (Read_byte(REGISTER_HL)) );
     Writeback_Reg16( REG_HL , (REGISTER_HL - 1) );
     register_b--;
     if (register_b==0) register_f = register_f | 0x40;      // Set Z flag
@@ -2479,7 +2480,7 @@ void opcode_0xED6F()  {                                     // rld
 // -------------------------------------------------
 void NMI_Handler() {
     
-    BIU_Bus_Cycle(OPCODE_READ_M1 , 0xABCD , 0x00 );
+    BIU_Bus_Cycle<OPCODE_READ_M1>(0xABCD , 0x00 );
     wait_for_CLK_falling_edge();
     
     if (halt_in_progress==1) Push(register_pc+1);  else Push(register_pc);
@@ -2506,8 +2507,8 @@ void INTR_Handler() {
         return;
     }
     else if (register_im==1)  {
-        local_intr_vector  = BIU_Bus_Cycle(INTERRUPT_ACK , 0x0000 , 0x00    ); 
-        BIU_Bus_Cycle(OPCODE_READ_M1 , 0xABCD , 0x00 );
+        local_intr_vector  = BIU_Bus_Cycle<INTERRUPT_ACK>(0x0000 , 0x00    ); 
+        BIU_Bus_Cycle<OPCODE_READ_M1>(0xABCD , 0x00 );
         wait_for_CLK_falling_edge();
 
         if (halt_in_progress==1) {
@@ -2521,7 +2522,7 @@ void INTR_Handler() {
         return; 
     }       
     else if (register_im==2)  {
-        local_intr_vector  = BIU_Bus_Cycle(INTERRUPT_ACK , 0x0000 , 0x00    ); 
+        local_intr_vector  = BIU_Bus_Cycle<INTERRUPT_ACK>(0x0000 , 0x00    ); 
         wait_for_CLK_falling_edge();
         if (halt_in_progress==1) {
             Push(register_pc+1);
@@ -3397,7 +3398,7 @@ return;
   // Copy the motherboard ROMS into internal RAM for acceleration
   //
   for (local_counter=0; local_counter<=0x37DF; local_counter++)  {
-    internal_RAM[local_counter] = BIU_Bus_Cycle(MEM_READ_BYTE , local_counter , 0x00 );
+    internal_RAM[local_counter] = BIU_Bus_Cycle<MEM_READ_BYTE>(local_counter , 0x00 );
   }
 
   local_counter=0;
