@@ -110,7 +110,14 @@ INLINE void DigitalWriteFast(PIN pin, u8 value) {
     digitalWriteFast(static_cast<u8>(pin), value);
 }
 
-   
+// Some utilities
+
+INLINE u8 HighByte(u16 data) {
+    return static_cast<u8>(data >> 8);
+}
+INLINE u8 LowByte(u16 data) {
+    return static_cast<u8>(0x00FF & data);
+}
 
 // --------------------------------------------------------------------------------------------------
 // --------------------------------------------------------------------------------------------------
@@ -207,6 +214,11 @@ uint16_t temp16=0;
 // -------------------------------------------------         
 
 struct GPIO {
+protected:
+    // Last value we actually read
+    u32 _raw = 0;
+
+public:
     static constexpr u32 GpioBit(int bitnum) {
         return static_cast<u32>(1) << bitnum;
     }
@@ -265,14 +277,13 @@ private:
     static_assert(MASK_NMI  ==0x00010000);
     static_assert(MASK_RESET==0x02000000);
 
-    // Last value we actually read
-    u32 _raw = 0;
-
+    INLINE BOOL Clk()   const { return Clk(_raw); }
     INLINE BOOL Reset() const { return Reset(_raw); }
-    INLINE BOOL Wait() const  { return Wait(_raw); }
-    INLINE BOOL Intr() const  { return Intr(_raw); }
-    INLINE BOOL Nmi()  const  { return Nmi(_raw); }
+    INLINE BOOL Wait()  const { return Wait(_raw); }
+    INLINE BOOL Intr()  const { return Intr(_raw); }
+    INLINE BOOL Nmi()   const { return Nmi(_raw); }
 
+    static INLINE constexpr BOOL Clk(u32 raw)   { return raw & MASK_CLK; }
     static INLINE constexpr BOOL Reset(u32 raw) { return raw & MASK_RESET; }
     static INLINE constexpr BOOL Wait(u32 raw)  { return raw & MASK_WAIT; }
     static INLINE constexpr BOOL Intr(u32 raw)  { return raw & MASK_INTR; }
@@ -332,11 +343,13 @@ private:
     static_assert(_dataMap[65535] == 0xff);
 
 public:
-    INLINE void Read() {
+    INLINE u32 Read() {
         _raw = GPIO6_DR;
+        return _raw;
     }
 
-    INLINE BOOL Clk()  const  { return _raw & MASK_CLK; }
+    INLINE BOOL ClkHigh() const { return Clk();  }
+    INLINE BOOL ClkLow()  const { return ~Clk() & MASK_CLK; } // avoid the branches that often come with using "!"
 
     INLINE BOOL ResetAsserted() const { return !Reset(); }
     INLINE BOOL WaitAsserted()  const { return !Wait();  }
@@ -357,7 +370,118 @@ public:
     }
 };
 
+//-------------------------
+
+struct GPIO7 : GPIO {
+    static constexpr u32 MASK_CPU_M1  = GpioBit(1);
+private:
+    static constexpr u32 MASK_ADDR_LATCH_n = GpioBit(2);
+
+    static constexpr u32 MASK_AD3_OUT = GpioBit(10);
+    static constexpr u32 MASK_AD4_OUT = GpioBit(17);
+    static constexpr u32 MASK_AD5_OUT = GpioBit(16);
+    static constexpr u32 MASK_AD6_OUT = GpioBit(11);
+    static constexpr u32 MASK_AD7_OUT = GpioBit(0);
+
+    static constexpr u32 MASK_CPU_A8  = GpioBit(19);
+    static constexpr u32 MASK_CPU_A9  = GpioBit(18);
+    static constexpr u32 MASK_CPU_A10 = GpioBit(28);
+    static constexpr u32 MASK_CPU_A11 = GpioBit(29);
+    static constexpr u32 MASK_CPU_A13 = GpioBit(12);
+
+    static constexpr u32 MASK_AD_OUT_BITS     = MASK_AD3_OUT | MASK_AD4_OUT | MASK_AD5_OUT | MASK_AD6_OUT | MASK_AD7_OUT;
+    static constexpr u32 MASK_CPU_ADDR_BITS   = MASK_CPU_A8 | MASK_CPU_A9 | MASK_CPU_A10 | MASK_CPU_A11 | MASK_CPU_A13;
+    static constexpr u32 MASK_MISC_WRITE_BITS = MASK_CPU_M1; // TODO: why no MASK_ADDR_LATCH_n?
+    static constexpr u32 MASK_WRITE_BITS      = MASK_CPU_ADDR_BITS | MASK_AD_OUT_BITS | MASK_MISC_WRITE_BITS;
+public:
+    static constexpr u32 MASK_WRITEBACK_BITS  = ~MASK_WRITE_BITS;
+
+    static_assert(MASK_AD_OUT_BITS     == 0x00030C01);
+    static_assert(MASK_CPU_ADDR_BITS   == 0x300C1000);
+    static_assert(MASK_MISC_WRITE_BITS == 0x00000002);
+    static_assert(MASK_WRITE_BITS      == 0x300F1C03);
+    static_assert(MASK_WRITEBACK_BITS  == 0xCFF0E3FC);
+    static_assert(MASK_CPU_M1 == 2);
+
+public:
+    INLINE u32 Read() {
+        _raw = GPIO7_DR;
+        return _raw;
+    }
+    INLINE void Write(u32 raw) {
+        GPIO7_DR = raw;
+    }
+};
+
+//-------------------------
+
+struct GPIO8 : GPIO {
+    static constexpr u32 MASK_IOREQ   = GpioBit(18);
+private:
+    static constexpr u32 MASK_CPU_A15 = GpioBit(23);
+    static constexpr u32 MASK_CPU_A14 = GpioBit(22);
+
+    static constexpr u32 MASK_CPU_ADDR_BITS   = MASK_CPU_A15 | MASK_CPU_A14;
+    static constexpr u32 MASK_MISC_WRITE_BITS = 0; // TODO: Why no MASK_IOREQ
+    static constexpr u32 MASK_WRITE_BITS      = MASK_CPU_ADDR_BITS | MASK_MISC_WRITE_BITS;
+public:
+    static constexpr u32 MASK_WRITEBACK_BITS  = ~MASK_WRITE_BITS;
+    static_assert(MASK_WRITEBACK_BITS == 0xFF3FFFFF);
+    static_assert(MASK_IOREQ == 0x00040000);
+
+public:
+    INLINE u32 Read() {
+        _raw = GPIO8_DR;
+        return _raw;
+    }
+    INLINE void Write(u32 raw) {
+        GPIO8_DR = raw;
+    }
+};
+
+//-------------------------
+
+struct GPIO9 : GPIO {
+    static constexpr u32 MASK_REFRESH   = GpioBit(31);
+    static constexpr u32 MASK_DATA_OE_n = GpioBit(4);
+private:
+    static constexpr u32 MASK_AD0_OUT = GpioBit(5);
+    static constexpr u32 MASK_AD1_OUT = GpioBit(6);
+    static constexpr u32 MASK_AD2_OUT = GpioBit(8);
+
+    static constexpr u32 MASK_CPU_A12 = GpioBit(7);
+
+    static constexpr u32 MASK_AD_OUT_BITS     = MASK_AD0_OUT | MASK_AD1_OUT | MASK_AD2_OUT;
+    static constexpr u32 MASK_CPU_ADDR_BITS   = MASK_CPU_A12;
+    static constexpr u32 MASK_MISC_WRITE_BITS = 0; // TODO: Why no MASK_REFRESH & MASK_DATA_OE_n?
+    static constexpr u32 MASK_WRITE_BITS      = MASK_CPU_ADDR_BITS | MASK_AD_OUT_BITS | MASK_MISC_WRITE_BITS;
+public:
+    static constexpr u32 MASK_WRITEBACK_BITS  = ~MASK_WRITE_BITS;
+
+    static_assert(MASK_AD_OUT_BITS     == 0x00000160);
+    static_assert(MASK_CPU_ADDR_BITS   == 0x00000080);
+    static_assert(MASK_MISC_WRITE_BITS == 0x00000000);
+    static_assert(MASK_WRITE_BITS      == 0x000001E0);
+    static_assert(MASK_WRITEBACK_BITS  == 0xFFFFFE1F);
+
+    static_assert((MASK_REFRESH | MASK_DATA_OE_n) == 0x80000010);
+
+public:
+    INLINE u32 Read() {
+        _raw = GPIO9_DR;
+        return _raw;
+    }
+    INLINE void Write(u32 raw) {
+        GPIO9_DR = raw;
+    }
+};
+
+//-------------------------
+
 GPIO6 gpio6;
+GPIO7 gpio7;
+GPIO8 gpio8;
+GPIO9 gpio9;
 
 
 // -------------------------------------------------
@@ -527,9 +651,9 @@ void setup() {
 //          0x3 - All read and write accesses use accelerated internal memory 
 // ----------------------------------------------------------
 inline uint8_t internal_address_check(uint16_t local_address) {
-    // if ( (local_address >= 0x0000) && (local_address <= 0x37DF) ) return mode;            //   TRS-80 Model III - ROM A, B, C   
-    // if ( (local_address >= 0x3C00) && (local_address <= 0x3FFF) ) return 0x0;             //   TRS-80 Model III - 1KB Video RAM  
-    // if ( (local_address >= 0x4000) && (local_address <= 0xFFFF) ) return mode;            //   TRS-80 Model III - 48KB DRAM
+    // if ( (local_address >= 0x0000) && (local_address <= 0x37DF) ) return mode; //   TRS-80 Model III - ROM A, B, C   
+    // if ( (local_address >= 0x3C00) && (local_address <= 0x3FFF) ) return 0x0;  //   TRS-80 Model III - 1KB Video RAM  
+    // if ( (local_address >= 0x4000) && (local_address <= 0xFFFF) ) return mode; //   TRS-80 Model III - 48KB DRAM
     return 0x0;
 } 
 
@@ -542,12 +666,12 @@ inline void wait_for_CLK_rising_edge() {
     // First ensure clock is at a low level
     do {
         gpio6.Read();
-    } while (gpio6.Clk());
+    } while (gpio6.ClkHigh());
 
     // Then poll for the first instance where clock is not low
     do {
         gpio6.Read();
-    } while (!gpio6.Clk());
+    } while (gpio6.ClkLow());
 
     if (debounce_refresh==1) {
         DigitalWriteFast(PIN::RFSH,0x1);
@@ -573,12 +697,12 @@ inline void wait_for_CLK_falling_edge() {
     // First ensure clock is at a high level
     do {
         gpio6.Read();
-    } while (!gpio6.Clk());
+    } while (gpio6.ClkLow());
 
     // Then poll for the first instance where clock is not high
     do {
         gpio6.Read();  
-    } while (gpio6.Clk());
+    } while (gpio6.ClkHigh());
 
     // Store slightly-delayed version of GPIO6 in a global register
     gpio6.Read();
@@ -591,7 +715,7 @@ inline void wait_for_CLK_falling_edge() {
 // -------------------------------------------------
 // Initiate a Z80 Bus Cycle
 // -------------------------------------------------
-inline uint8_t BIU_Bus_Cycle(uint8_t biu_operation, uint16_t local_address, uint8_t local_data)  {
+inline u8 BIU_Bus_Cycle(u8 biu_operation, u16 local_address, u8 local_data)  {
 
     // For non-IO cycles, check address for the acceleration mode
     //
@@ -604,19 +728,19 @@ inline uint8_t BIU_Bus_Cycle(uint8_t biu_operation, uint16_t local_address, uint
 
     u8 read_cycle = (biu_operation & 0x1);
 
-    u8 m1_cycle;
+    u32 m1_cycle;
     if ( (biu_operation==OPCODE_READ_M1) || ( biu_operation==INTERRUPT_ACK) ) {
         m1_cycle=0;
     } else {
-        m1_cycle=2;
+        m1_cycle=GPIO7::MASK_CPU_M1;
     }
     
-    
-    if (local_mode>1 && ((biu_operation==OPCODE_READ_M1)||(biu_operation==MEM_READ_BYTE)) ) {
+    if (local_mode>1 && ((biu_operation==OPCODE_READ_M1) || (biu_operation==MEM_READ_BYTE)) ) {
         return internal_RAM[local_address];                     // Mode 2, 3 Reads
     }
     if (local_mode>2 && local_address>=0x4000 && biu_operation==MEM_WRITE_BYTE ) {
-        internal_RAM[local_address] = local_data;  return 0xEE; // Mode 3 Writes
+        internal_RAM[local_address] = local_data;               // Mode 3 Writes
+        return 0xEE; 
     }       
 
     noInterrupts();                                  // Disable Teensy interrupts so the Z80 bus cycle can complete without interruption
@@ -625,24 +749,24 @@ inline uint8_t BIU_Bus_Cycle(uint8_t biu_operation, uint16_t local_address, uint
   
     // Pre-calculate before the clock edge to gain speed
     //
-    u8  local_address_high = (local_address)>>8;
-    u8  local_address_low  = (0x00FF&local_address);
+    u8  local_address_high = HighByte(local_address);
+    u8  local_address_low  = LowByte(local_address);
     u32 gpio7_out = gpio7_high_array[local_address_high] | gpio7_low_array[local_address_low];
-    u32 gpio8_out = gpio8_high_array[local_address_high] ;
+    u32 gpio8_out = gpio8_high_array[local_address_high];
     u32 gpio9_out = gpio9_high_array[local_address_high] | gpio9_low_array[local_address_low];
     
-    u32 writeback_data7 = (0xCFF0E3FC & GPIO7_DR) | m1_cycle;   
-    u32 writeback_data9 = (0xFFFFFE1F & GPIO9_DR);   
-    u32 writeback_data8 = (0xFF3FFFFF & GPIO8_DR);   
+    u32 writeback_data7 = (GPIO7::MASK_WRITEBACK_BITS & gpio7.Read()) | m1_cycle;
+    u32 writeback_data9 = (GPIO9::MASK_WRITEBACK_BITS & gpio9.Read());
+    u32 writeback_data8 = (GPIO8::MASK_WRITEBACK_BITS & gpio8.Read());
 
 
     // Address phase is common for all bus cycle types - Lower byte of address is multiplexed with data so needs to be externally latched
     // -----------------------------------------------------------------------------------------------------------------------------------------
     wait_for_CLK_rising_edge();
-    GPIO7_DR = writeback_data7 | gpio7_out; // T1 Rising 
-    GPIO8_DR = writeback_data8 | gpio8_out;
-    GPIO9_DR = writeback_data9 | gpio9_out | 0x80000010; // disable PIN_RFSH and PIN_DATA_OE_n
-	if ( (biu_operation==OPCODE_READ_M1) || (biu_operation==INTERRUPT_ACK) )  {
+    gpio7.Write(writeback_data7 | gpio7_out); // T1 Rising
+    gpio8.Write(writeback_data8 | gpio8_out);
+    gpio9.Write(writeback_data9 | gpio9_out | GPIO9::MASK_REFRESH | GPIO9::MASK_DATA_OE_n); // disable PIN_RFSH and PIN_DATA_OE_n
+    if ( (biu_operation==OPCODE_READ_M1) || (biu_operation==INTERRUPT_ACK) )  {
 	    DigitalWriteFast(PIN::M1,0x0);
     }
 
@@ -671,9 +795,9 @@ inline uint8_t BIU_Bus_Cycle(uint8_t biu_operation, uint16_t local_address, uint
         gpio8_out = gpio8_high_array[local_address_high] ;
         gpio9_out = gpio9_high_array[local_address_high] | gpio9_low_array[local_address_low];
           
-        writeback_data7 = (0xCFF0E3FC & GPIO7_DR) | 0x2; // drive M1 high again   
-        writeback_data8 = (0xFF3FFFFF & GPIO8_DR);    
-        writeback_data9 = (0xFFFFFE1F & GPIO9_DR);    
+        writeback_data7 = (GPIO7::MASK_WRITEBACK_BITS & gpio7.Read()) | GPIO7::MASK_CPU_M1; // drive M1 high again   
+        writeback_data8 = (GPIO8::MASK_WRITEBACK_BITS & gpio8.Read());    
+        writeback_data9 = (GPIO9::MASK_WRITEBACK_BITS & gpio9.Read());    
 
         //-------------------------------------------------------------------------------------
         wait_for_CLK_rising_edge();
@@ -681,19 +805,19 @@ inline uint8_t BIU_Bus_Cycle(uint8_t biu_operation, uint16_t local_address, uint
                                         
         // Drive Refresh address
         //
-        GPIO9_DR        = writeback_data9 | gpio9_out;                          
-        GPIO8_DR        = writeback_data8 | gpio8_out;
-        GPIO7_DR        = writeback_data7 | gpio7_out; 
+        gpio9.Write(writeback_data9 | gpio9_out);
+        gpio8.Write(writeback_data8 | gpio8_out);
+        gpio7.Write(writeback_data7 | gpio7_out);
 
         DigitalWriteFast(PIN::MREQ,0x1); 
         DigitalWriteFast(PIN::RFSH,0x0);  
         DigitalWriteFast(PIN::RD,0x1); 
-        DigitalWriteFast(PIN::M1,0x1);  
+        DigitalWriteFast(PIN::M1,0x1);          // TODO: isn't this redundant w/ writeback_data7 above?
 
         //-------------------------------------------------------------------------------------                              
         wait_for_CLK_falling_edge();
         DigitalWriteFast(PIN::MREQ,0x0);                                     // T3 Falling
-        u8 read_data = gpio6.Data(read_data_raw);                                  // Read the Z80 bus data, re-arranging bits
+        u8 read_data = gpio6.Data(read_data_raw);                                 // Read the Z80 bus data, re-arranging bits
 
         //-------------------------------------------------------------------------------------
         wait_for_CLK_falling_edge();
@@ -779,16 +903,16 @@ inline uint8_t BIU_Bus_Cycle(uint8_t biu_operation, uint16_t local_address, uint
                                       
 
         //-------------------------------------------------------------------------------------
-        wait_for_CLK_rising_edge();                                                                             // Tw Rising        
-        wait_for_CLK_rising_edge();                                                                             // T3 Rising        
+        wait_for_CLK_rising_edge();                                             // Tw Rising        
+        wait_for_CLK_rising_edge();                                             // T3 Rising        
         wait_for_CLK_falling_edge();
         while (gpio6.WaitAsserted()) {
-            wait_for_CLK_falling_edge();                                         // T3 Falling        -- Read data sampled on this edge  
+            wait_for_CLK_falling_edge();                                        // T3 Falling        -- Read data sampled on this edge  
         }               
         DigitalWriteFast(PIN::IOREQ,0x1);                                       
         DigitalWriteFast(PIN::RD,0x1); 
         DigitalWriteFast(PIN::WR,0x1); 
-        u8 read_data = gpio6.Data();                                             // Read the Z80 bus data, re-arranging bits
+        u8 read_data = gpio6.Data();                                            // Read the Z80 bus data, re-arranging bits
 
         interrupts(); 
         return read_data;
@@ -800,15 +924,15 @@ inline uint8_t BIU_Bus_Cycle(uint8_t biu_operation, uint16_t local_address, uint
     else if (biu_operation==INTERRUPT_ACK)  {
 
         //-------------------------------------------------------------------------------------
-        wait_for_CLK_rising_edge();                                                                             // T2 Rising
-        wait_for_CLK_rising_edge();                                                                             // Tw1 Rising
+        wait_for_CLK_rising_edge();                                             // T2 Rising
+        wait_for_CLK_rising_edge();                                             // Tw1 Rising
         wait_for_CLK_falling_edge();
-        DigitalWriteFast(PIN::IOREQ,0x0);                                  // Tw1 Falling
+        DigitalWriteFast(PIN::IOREQ,0x0);                                 // Tw1 Falling
 
         //-------------------------------------------------------------------------------------
         wait_for_CLK_falling_edge();
         while (gpio6.WaitAsserted()) {
-            wait_for_CLK_falling_edge();                                         // Tw2 Falling
+            wait_for_CLK_falling_edge();                                        // Tw2 Falling
         }              
 
         // Pre-calculate before the next clock edge to gain speed
@@ -816,12 +940,12 @@ inline uint8_t BIU_Bus_Cycle(uint8_t biu_operation, uint16_t local_address, uint
         local_address_high = register_i;
         local_address_low  = register_r;
         gpio7_out = gpio7_high_array[local_address_high] | gpio7_low_array[local_address_low];
-        gpio8_out = gpio8_high_array[local_address_high] | 0x00040000 ; // Also set IOREQ_n high
+        gpio8_out = gpio8_high_array[local_address_high] | GPIO8::MASK_IOREQ; // Also set IOREQ_n high
         gpio9_out = gpio9_high_array[local_address_high] | gpio9_low_array[local_address_low];
 
-        writeback_data7 = (0xCFF0E3FC & GPIO7_DR) | 0x2; // drive M1 high again   
-        writeback_data9 = (0xFFFFFE1F & GPIO9_DR);   // Read in current GPIOx register value and clear the bits we intend to update
-        writeback_data8 = (0xFF3FFFFF & GPIO8_DR);   // Read in current GPIOx register value and clear the bits we intend to update
+        writeback_data7 = (GPIO7::MASK_WRITEBACK_BITS & gpio7.Read()) | GPIO7::MASK_CPU_M1; // drive M1 high again   
+        writeback_data9 = (GPIO9::MASK_WRITEBACK_BITS & gpio9.Read());   // Read in current GPIOx register value and clear the bits we intend to update
+        writeback_data8 = (GPIO8::MASK_WRITEBACK_BITS & gpio8.Read());   // Read in current GPIOx register value and clear the bits we intend to update
           
 
         //-------------------------------------------------------------------------------------
@@ -830,15 +954,14 @@ inline uint8_t BIU_Bus_Cycle(uint8_t biu_operation, uint16_t local_address, uint
                                       
         // Drive Refresh address
         //
-        GPIO9_DR        = writeback_data9 | gpio9_out;                          
-        GPIO8_DR        = writeback_data8 | gpio8_out;
-        GPIO7_DR        = writeback_data7 | gpio7_out; 
+        gpio9.Write(writeback_data9 | gpio9_out);
+        gpio8.Write(writeback_data8 | gpio8_out);
+        gpio7.Write(writeback_data7 | gpio7_out);
 
-        DigitalWriteFast(PIN::M1,0x1); 
+        DigitalWriteFast(PIN::M1,0x1);          // TODO: isn't this redundant w/ writeback_data7 above?
         DigitalWriteFast(PIN::RFSH,0x0);  
-        DigitalWriteFast(PIN::IOREQ,0x1);
+        DigitalWriteFast(PIN::IOREQ,0x1);       // TODO: isn't this redundant w/ gpio8_out above?
 
-                                          
         //-------------------------------------------------------------------------------------
         wait_for_CLK_falling_edge();
         DigitalWriteFast(PIN::MREQ,0x0);                                    // T3 Falling
